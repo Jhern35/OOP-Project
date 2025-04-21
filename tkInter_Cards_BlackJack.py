@@ -18,8 +18,8 @@ card_width = 120
 card_height = 160
 
 
-clubs_img = load_card_image("10_of_clubs.png", card_width, card_height)
-diamonds_img = load_card_image("10_of_diamonds.png", card_width, card_height)
+clubs_img = load_card_image("images/10_of_clubs.png", card_width, card_height)
+diamonds_img = load_card_image("images/10_of_diamonds.png", card_width, card_height)
 
 
 main_frame = tk.Frame(root, bg="green")

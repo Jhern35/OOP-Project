@@ -3,6 +3,7 @@ import sys
 import pygame as py
 from abc import ABC, abstractmethod
 
+
 # We will modify as needed. 
 class Game(ABC):
     @abstractmethod
@@ -14,30 +15,79 @@ class Game(ABC):
         pass
 
     @abstractmethod
-    def player_cards():
+    def deal_cards():
         pass
 
     @abstractmethod
-    def dealer_cards():
+    def used_cards():
         pass
 
 
 class Card:
-    def __init__(self, number, suit, color):
-        self._number = number
-        self._suit = suit
-        self._suit = color
+    def __init__(self, rank, suit, value=0):
+        self.rank = rank
+        self.suit = suit
+        self.value = value
+        self.image = self.get_file(rank, suit)
     
-
+    def get_file(self, rank, suit) -> str:
+        return f"Images/{rank}_of_{suit}.png"
 
 class Deck(Card):
     def __init__(self):
-        pass
+        self.cards = []
+    
+    def addAllCards(self):
+        suits = ["hearts", "diamonds", "spades", "clubs"]
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'ace', 'jack', 'queen', 'king']
+        for suit in suits:
+            for rank in ranks:
+                self.cards.append(super().__init__(rank, suit))
+        self.shuffle() 
+        return self.cards
 
+    def shuffle(self):
+        random.shuffle(self.cards)
 
-class Baccarat(Game):
+class Baccarat(Game, Deck, Card):
     def __init__(self):
+        self.deck = Deck.addAllCards()
+        self.set_ranks()
+        self.player = []
+        self.banker = []
+        self.trash_cards = []
+        self.result = ""
+    
+    def set_ranks(self):
+        for rank in self.deck.rank:
+            if rank == "10" or "king" or "queen" or "jack":
+                continue
+            elif rank == "ace":
+                self.deck.value = 1
+            else:
+                self.deck.value = int(rank)
+    
+    def deal_cards(self):
+        self.player.append(self.deck.pop())
+        self.player.append(self.deck.pop())
+        self.banker.append(self.deck.pop())
+        self.banker.append(self.deck.pop()) 
+
+    def used_cards(self):
+        self.trash_cards.append(self.player.pop())
+        self.trash_cards.append(self.player.pop())
+        self.trash_cards.append(self.banker.pop())
+        self.trash_cards.append(self.banker.pop())
+
+    def game_over(self):
         pass
+    
+    def rules(self):
+        pass
+
+    # def vote(self):
+    #     self.vote = input("Bets:\nPlayer Wins\nBanker Wins\nTie\n")
+    #     return self.vote
 
 class Button: 
     def __init__(self, x, y, label):
@@ -51,14 +101,6 @@ class Button:
     
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
-
-
-
-def baccarat():
-    pass
-
-def blackjack():
-    pass
     
 
 py.init()
@@ -103,17 +145,16 @@ while True:
             baccarat.draw(screen)
             blackjack.draw(screen)
             exit.draw(screen)
+
         elif state == "baccarat":
-            screen.fill((0, 0, 0))
-            loading = font.render("Loading...", True, (255, 255, 255))
-            screen.blit(loading, (center_screenW - 100, center_screenH))
-            baccarat()
-        
+            screen.fill((65, 163, 101))
+            title = font.render("Baccarat", True, (0, 0, 0))
+            screen.blit(title, (resolution.current_w // 4 - title.get_width() // 2, 50))
+            player = Baccarat()
+
+
         elif state == "blackjack":
-            screen.fill((0, 0, 0))
-            loading = font.render("Loading....", True, (255, 255, 255))
-            screen.blit(loading, (center_screenW - 100, center_screenH))
-            blackjack()
+            pass
         
         keys = py.key.get_pressed()
         if keys[py.K_ESCAPE]:

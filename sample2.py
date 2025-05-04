@@ -189,6 +189,127 @@ class Baccarat:
 
             py.display.flip()
             clock.tick(60)
+class BlackJack:
+    def __init__(self):
+        self.deck = Deck()
+        self.deck.addAllCards()
+        self.player = []
+        self.banker = []
+        self.result = ""
+        self.scoreP = 100
+        self.bet_selected = False
+        self.round_over = False
+        self.choice = ""
+
+    def deal_cards(self):
+        self.player = [self.deck.cards.pop(), self.deck.cards.pop()]
+        self.banker = [self.deck.cards.pop(), self.deck.cards.pop()]
+
+    def rules(self):
+        p_total = sum(card.value for card in self.player)
+        b_total = sum(card.value for card in self.banker)
+
+        # Player draws if total < 17
+        if p_total < 17:
+            self.player.append(self.deck.cards.pop())
+            p_total = sum(card.value for card in self.player)
+
+        # Banker draws if total < 17
+        if b_total < 17:
+            self.banker.append(self.deck.cards.pop())
+            b_total = sum(card.value for card in self.banker)
+
+        # Check for busts
+        if p_total > 21 and b_total > 21:
+            self.result = "Tie!"
+        elif p_total > 21:
+            self.result = "Banker Wins!"
+        elif b_total > 21:
+            self.result = "Player Wins!"
+        elif p_total > b_total:
+            self.result = "Player Wins!"
+        elif b_total > p_total:
+            self.result = "Banker Wins!"
+        else:
+            self.result = "Tie!"
+
+    def gameplay(self, screen, width, height):
+        global font, clock
+        button_player = Button(100, 50, "Player")
+        button_banker = Button(250, 50, "Banker")
+        button_tie = Button(400, 50, "Tie")
+        button_deal = Button(550, 50, "Deal")
+
+        running = True
+        while running:
+            screen.fill((65, 163, 101))
+            title = font.render("BlackJack", True, (0, 0, 0))
+            screen.blit(title, (width - title.get_width() // 2, 0))
+
+            button_player.draw(screen)
+            button_banker.draw(screen)
+            button_tie.draw(screen)
+            button_deal.draw(screen)
+
+            screen.blit(font.render(f"Credits: {self.scoreP}", True, (0, 0, 0)), (50, 620))
+
+            if self.round_over:
+                for i, card in enumerate(self.player):
+                    img = card.load_card()
+                    if img:
+                        screen.blit(py.transform.scale(img, (120, 160)), (100 + i * 130, 200))
+                for j, card in enumerate(self.banker):
+                    img = card.load_card()
+                    if img:
+                        screen.blit(py.transform.scale(img, (120, 160)), (100 + j * 130, 400))
+                result_text = font.render(self.result, True, (0, 0, 0))
+                screen.blit(result_text, (400, 350))
+                continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
+                screen.blit(continue_text, (300, 580))
+
+
+            for event in py.event.get():
+                if event.type == py.QUIT:
+                    py.quit(); sys.exit()
+                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if button_player.is_clicked(event.pos):
+                        self.choice = "Player Wins!"
+                        self.bet_selected = True
+                    elif button_banker.is_clicked(event.pos):
+                        self.choice = "Banker Wins!"
+                        self.bet_selected = True
+                    elif button_tie.is_clicked(event.pos):
+                        self.choice = "Tie!"
+                        self.bet_selected = True
+                    elif button_deal.is_clicked(event.pos) and self.bet_selected and not self.round_over:
+                        if len(self.deck.cards) < 40:
+                            self.deck = Deck()
+                            self.deck.addAllCards()
+
+                        self.deal_cards()        
+                        self.rules()  
+
+                        if self.result == self.choice:
+                            self.scoreP += 5
+                        else:
+                            self.scoreP -= 10
+                        self.round_over = True
+
+            keys = py.key.get_pressed()
+            if keys[py.K_RETURN] and self.round_over:
+                self.bet_selected = False
+                self.round_over = False
+                self.choice = ""
+                self.player.clear()
+                self.banker.clear()
+                self.result=""
+            
+
+
+            py.display.flip()
+            clock.tick(60)
+
+
 
 #LAUNCH
 def start_baccarat():
@@ -203,9 +324,15 @@ def start_baccarat():
     game.gameplay(screen, 400, 300)
 
 def start_blackjack():
-    print("Blackjack screen placeholder")
     w.destroy()
-    sys.exit()
+    py.init()
+    screen = py.display.set_mode((1000, 700))
+    py.display.set_caption("BlackJack")
+    global font, clock
+    font = py.font.Font("CARDC___.TTF", 40)
+    clock = py.time.Clock()
+    game = BlackJack()
+    game.gameplay(screen, 400, 300)
 
 def quit_game():
     w.destroy()

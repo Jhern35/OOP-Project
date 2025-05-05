@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import font as tkfont
-from PIL import Image
 import pygame as py
 import random
 import sys
@@ -414,7 +413,6 @@ class Blackjack(Game):
                     if play_againY.is_clicked(event.pos):
                         self.__scoreP = 1000
                         self._blackjack = False
-                        #self.round_over = False
                         self._bet = 100
                         self.__choice = ""
                         self.used_cards()
@@ -520,7 +518,7 @@ class Blackjack(Game):
                         round_over = True
                     elif round_over:  
                         continue
-                    elif stage == 2:
+                    if stage == 1:
                         if hit.is_clicked(event.pos):
                             self.__choice = "hit"
                         elif stand.is_clicked(event.pos):

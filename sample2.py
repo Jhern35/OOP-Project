@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import font as tkfont
-from PIL import Image
 import pygame as py
 import random
 import sys
@@ -34,11 +33,19 @@ class Card:
         self.image = f"Images/{rank}_of_{suit}.png"
 
     def load_card(self):
+        try:
             return py.image.load(self.image).convert_alpha()
+        except:
+            print("Missing image")
+            return None
     
     def face_card(self):
+        try:
             return py.image.load("Images/face.png").convert_alpha()
-    
+        except:
+            print("Missing Card")
+            return None
+
 class Deck:
     def __init__(self):
         self.cards = []
@@ -151,19 +158,14 @@ class Baccarat(Game):
             self.banker.clear()
 
     def game_over(self, screen, width, height):
-        global font, clock
-        play_againY = Button(width, height + 100, "Yes")
-        play_againN = Button(width + 100, height + 100, "No")
+        play_againY = Button(width * 2 - 200, height * 2, "Yes")
+        play_againN = Button(width * 2 - 100, height * 2, "No")
         running = True
 
         while running:
-            screen.fill((65, 163, 101))
-            if self.scoreP <= 0: 
-                result_label = font.render("You're out of chips! Would you like to", True, (0, 0, 0))
-                rest_of_label = font.render("play again?", True, (0, 0, 0))
+            if self.scoreP <= 0: result_label = font.render("You're out of chips! Would you like to play agian?", True, (0, 0, 0))
 
-            screen.blit(result_label, (0, 100))
-            screen.blit(rest_of_label, (0, 200))
+            screen.blit(result_label, (0, height * 1.8))
             play_againY.draw(screen)
             play_againN.draw(screen)
 
@@ -175,13 +177,13 @@ class Baccarat(Game):
                     if play_againY.is_clicked(event.pos):
                         self.scoreP = 100
                         self.bet_selected = False
+                        self.round_over = False
                         self.choice = ""
                         self.used_cards()
                         self.result=""
-                        return
+                        return True
                     elif play_againN.is_clicked(event.pos):
-                        py.quit()
-                        sys.exit()
+                        return False
 
             keys = py.key.get_pressed()
 
@@ -227,8 +229,6 @@ class Baccarat(Game):
                 continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
                 screen.blit(continue_text, (300, 580))
 
-            if self.scoreP < 1:
-                self.game_over(screen, width, height)
 
             for event in py.event.get():
                 if event.type == py.QUIT:
@@ -257,6 +257,9 @@ class Baccarat(Game):
                             self.scoreP -= 10
                         self.round_over = True
 
+                        if self.scoreP < 1:
+                             running = self.game_over(screen, width, height)
+
             keys = py.key.get_pressed()
             if keys[py.K_RETURN] and self.round_over:
                 self.bet_selected = False
@@ -283,255 +286,119 @@ class Blackjack(Game):
     def __init__(self):
         self.deck = Deck()
         self.deck.addAllCards()
-        self.set_card_values()
         self.player = []
         self.dealer = []
         self.scoreP = 1000
         self.result = ""
-        self.choice = ""
-        self.bet = 100
-        self.blackjack = False
+        self.bet = ""
     
     def deal_cards(self):
-        self.player.append(self.deck.cards.pop())
-        self.player.append(self.deck.cards.pop())
-        self.dealer.append(self.deck.cards.pop())
-        self.dealer.append(self.deck.cards.pop())
+        pass
 
     def used_cards(self):
-        self.player.clear()
-        self.dealer.clear()
-    
-    def ace_cards(self, dealer_score, player_score):
-        ace_cards = sum(1 for card in self.player if card.rank == 'ace')
-        dealer_ace_cards = sum(1 for card in self.dealer if card.rank == 'ace')
-
-        if player_score > 21 and ace_cards != 2:
-            for i in range(ace_cards):
-                player_score -= 10
-        else:
-            player_score -= 10
-        
-        if dealer_score > 21 and dealer_ace_cards != 2:
-            for i in range(dealer_ace_cards):
-                dealer_score -= 10
-        else:
-            dealer_score -= 10
-        
-        return dealer_score, player_score
+        pass
 
     def rules(self):
-        player_score = sum(card.value for card in self.player)
-        
-        dealer_score = sum(card.value for card in self.dealer)
-        
-
-        if player_score == 21 and dealer_score != 21:
-            self.result = "Player Wins!"
-            self.blackjack = True
-            return
-        elif dealer_score == 21 and player_score != 21:
-            self.result = "Dealer Wins!"
-            self.blackjack = True
-            return
-        elif dealer_score == 21 and player_score == 21:
-            self.result = "Push!"
-            return
-
-        dealer_score, player_score = self.ace_cards(dealer_score, player_score)
-
-        if self.choice == "hit":
-            self.player.append(self.deck.cards.pop())
-            player_score += self.player[2].value
-        elif self.choice == "double down":
-            self.bet *= 2
-            self.player.append(self.deck.cards.pop())
-            player_score += self.player[2].value
-        if dealer_score < 17:
-            self.dealer.append(self.deck.cards.pop())
-            dealer_score += self.dealer[2].value
-        
-        dealer_score, player_score = self.ace_cards(dealer_score, player_score)
-        
-        if player_score == 21 and dealer_score == 21:
-            self.result = "Push!"
-        elif player_score > 21 and dealer_score < 21:
-            self.result = "Dealer Wins!"
-        elif player_score < 21 and dealer_score > 21:
-            self.result = "Player Wins!"
-        else:
-            if player_score < dealer_score:
-                self.result = "Dealer Wins!"
-            elif player_score > dealer_score:
-                self.result = "Player Wins!"
-            else:
-                self.result = "Push!"
-        
-    def set_card_values(self):
-        for card in self.deck.cards:
-            if card.rank in ['jack', 'king', 'queen']:
-                card.value = 10
-            if card.rank == 'ace':
-                card.value = 11
-    
-    def game_over(self, screen, width, height):
-        global font, clock
-        play_againY = Button(width, height + 100, "Yes")
-        play_againN = Button(width + 100, height + 100, "No")
-        running = True
-
-        while running:
-            screen.fill((65, 163, 101))
-            if self.scoreP <= 0: 
-                result_label = font.render("You're out of chips! Would you like to", True, (0, 0, 0))
-                rest_of_label = font.render("play again?", True, (0, 0, 0))
-
-            screen.blit(result_label, (0, 100))
-            screen.blit(rest_of_label, (0, 200))
-            play_againY.draw(screen)
-            play_againN.draw(screen)
-
-            for event in py.event.get():
-                if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
-                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                    if play_againY.is_clicked(event.pos):
-                        self.scoreP = 1000
-                        self.blackjack = False
-                        self.round_over = False
-                        self.bet = 100
-                        self.choice = ""
-                        self.used_cards()
-                        self.result=""
-                        return 1
-                    elif play_againN.is_clicked(event.pos):
-                        py.quit()
-                        sys.exit()
-
-            keys = py.key.get_pressed()
-
-            if keys[py.K_ESCAPE]:
-                py.quit()
-                sys.exit()
-
-            py.display.flip()
-            clock.tick(60)
+        pass
 
     def gameplay(self, screen, width, height):
         global font, clock
         hit = Button(100, 100, "Hit")
-        stand = Button(200, 100, "Stand")
-        double_down = Button(350, 100, "Double Down")
-        deal = Button(650, 100, "Play")
+        stand = Button(300, 100, "Stand")
+        double_down = Button(500, 100, "Double Down")
+        split = Button(700, 100, "Split")
 
         round_over = False
         stage = 1
-        are_cards_dealt = False
         running = True
-
         while running:
             screen.fill((65, 163, 101))
             title = font.render("Blackjack", True, (0, 0, 0))
             screen.blit(title, (width - title.get_width() // 2, 0)) 
+
             screen.blit(font.render(f"Credits: {self.scoreP}", True, (0, 0, 0)), (50, 620))
 
-            hit.draw(screen)
-            stand.draw(screen)
-            double_down.draw(screen)
-            deal.draw(screen)
-            keys = py.key.get_pressed()
-
-            if stage == 1 and not are_cards_dealt:
-                self.used_cards()  
+            if stage == 1:
                 self.deal_cards()
-                are_cards_dealt = True
-
-            if self.player and self.dealer:
+                card_load, card_two, dealer1, dealer2 = self.player[0].load_card(), self.player[1].load_card(), self.dealer[0].load_card(), self.dealer[1].face_card()
+                if card_load and card_two:
+                    screen.blit(py.transform.scale(card_load, (120, 160)), (100 + 130, 200))
+                    screen.blit(py.transform.scale(card_load, (120, 160)), (100 + 2 * 130, 200))
+                if dealer1 and dealer2:
+                    screen.blit(py.transform.scale(dealer1, (120, 160)), (100 + 130, 400))
+                    screen.blit(py.transform.scale(dealer2.face_card(), (120, 160)), (100 + 2 * 130, 400))
+                stage = 2
+            
+            if stage == 2:
+                hit.draw(screen)
+                stand.draw(screen)
+                double_down.draw(screen)
+                split.draw(screen)
+                
                 for i,card in enumerate(self.player):
                     load_img = card.load_card()
                     if load_img:
-                       screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 200))
-
+                        screen.blit(py.transform.scale(card, (120, 160)), (100 + i * 130, 200))
+                
                 for i,card in enumerate(self.dealer):
-                    if i == 1 and stage == 1:
-                        load_img = card.face_card()
-                        if load_img:
-                            screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 400))
-                    else:
-                        load_img = card.load_card()
-                        if load_img:
-                            screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 400))
+                    load_img = card.load_card()
+                    if load_img:
+                        screen.blit(py.transform.scale(card, (120, 160)), (100 + i * 130, 400))
+                
 
-                if self.result:
-                    if self.scoreP <= 0 and round_over:
-                        stage = self.game_over(screen, width, height)
-                    if self.blackjack:
-                        result_text = font.render(f"Blackjack! {self.result}", True, (0, 0, 0))
-                    else:
-                        result_text = font.render(self.result, True, (0, 0, 0))
-                    screen.blit(result_text, (400, 350))
-                    continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
-                    screen.blit(continue_text, (300, 580))
+                result_text = font.render(self.result, True, (0, 0, 0))
+                screen.blit(result_text, (500, 350))
+                continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
+                screen.blit(continue_text, (300, 580))
 
             for event in py.event.get():
-                if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
-
-                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                    if deal.is_clicked(event.pos) and not round_over:
-                        if len(self.deck.cards) < 10:
-                            self.deck.addAllCards()
-                            self.set_card_values()
-                        self.rules()
-                        stage = 2
-                        
-                        if self.blackjack:
-                            self.bet *= 1.5
-                            self.bet //= 1
-                            self.scoreP -= self.bet
-                        elif self.result == "Player Wins!":
-                            self.scoreP += self.bet
-                        elif self.result == "Dealer Wins!":
-                            self.scoreP -= self.bet
-                        self.bet = 100
-                        round_over = True
-                    elif round_over:  
-                        continue
-                    elif stage == 2:
+                    if event.type == py.QUIT:
+                        py.quit(); sys.exit()
+                    elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
                         if hit.is_clicked(event.pos):
-                            self.choice = "hit"
+                            self.choice = "Player Wins!"
+                            self.bet_selected = True
                         elif stand.is_clicked(event.pos):
-                            self.choice = "stand"
+                            self.choice = "Banker Wins!"
+                            self.bet_selected = True
                         elif double_down.is_clicked(event.pos):
-                            self.choice = "double down"
-            
-            if keys[py.K_RETURN] and round_over:
-                round_over = False
-                self.blackjack = False
-                self.choice = ""
-                self.used_cards()
-                self.result = ""
-                stage = 1
-                are_cards_dealt = False
+                            self.choice = "Tie!"
+                            self.bet_selected = True
+                        elif split.is_clicked(event.pos) and self.bet_selected and not self.round_over:
+                            if len(self.deck.cards) < 40:
+                                self.deck = Deck()
+                                self.deck.addAllCards()
 
-            if keys[py.K_KP_ENTER] and round_over:
-                round_over = False
-                self.blackjack = False
-                self.choice = ""
-                self.used_cards()
-                self.result = ""
-                stage = 1
-                are_cards_dealt = False
+                            self.deal_cards()        
+                            self.rules()  
+
+                            if self.result == self.choice:
+                                self.scoreP += 5
+                            else:
+                                self.scoreP -= 10
+                            self.round_over = True
+
+                    keys = py.key.get_pressed()
+                    if keys[py.K_RETURN] and round_over:
+                        round_over = False
+                        self.choice = ""
+                        self.used_cards()
+                        self.result=""
+                    
+                    if keys[py.K_KP_ENTER]:
+                        self.round_over = False
+                        self.bet_selected = False
+                    
+                    if keys[py.K_ESCAPE]:
+                        py.quit()
+                        sys.exit()
 
 
-            if keys[py.K_ESCAPE]:
-                            py.quit()
-                            sys.exit()
-            
-            py.display.flip()
-            clock.tick(60)
+                    py.display.flip()
+                    clock.tick(60)
+
+
+
 
 #LAUNCH
 def start_baccarat():
@@ -546,15 +413,9 @@ def start_baccarat():
     game.gameplay(screen, 400, 300)
 
 def start_blackjack():
+    print("Blackjack screen placeholder")
     w.destroy()
-    py.init()
-    screen = py.display.set_mode((1000, 700))
-    py.display.set_caption("Blackjack")
-    global font, clock
-    font = py.font.Font("CARDC___.TTF", 40)
-    clock = py.time.Clock()
-    game = Blackjack()
-    game.gameplay(screen, 400, 300)
+    sys.exit()
 
 def quit_game():
     w.destroy()

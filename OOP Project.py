@@ -1,8 +1,12 @@
+import tkinter as tk
+from tkinter import font as tkfont
+from PIL import Image
+import pygame as py
 import random
 import sys
-import pygame as py
 from abc import ABC, abstractmethod
- 
+
+
 class Game(ABC):
     @abstractmethod
     def rules():
@@ -21,573 +25,554 @@ class Game(ABC):
         pass
 
 
+#CARD/BUTTONS
 class Card:
     def __init__(self, rank, suit, value=0):
         self.rank = rank
         self.suit = suit
         self.value = value
-        self.image = self.get_file(rank, suit)
-    
-    def get_file(self, rank, suit) -> str:
-        return f"Images/{rank}_of_{suit}.png"
-    
-    def load_card(self):
-        try:
-            return py.image.load(self.image).convert_alpha()
-        except:
-            print("Missing image")
-            return None
+        self.image = f"Images/{rank}_of_{suit}.png"
 
+    def load_card(self):
+            return py.image.load(self.image).convert_alpha()
+    
+    def face_card(self):
+            return py.image.load("Images/face.png").convert_alpha()
+    
 class Deck:
     def __init__(self):
         self.cards = []
-    
+
     def addAllCards(self):
+        self.cards.clear()
         suits = ["hearts", "diamonds", "spades", "clubs"]
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'ace', 'jack', 'queen', 'king']
         for suit in suits:
             for rank in ranks:
                 if rank == 'ace':
-                    card = Card(rank, suit, 1)
+                    self.cards.append(Card(rank, suit, 1))
                 elif rank == 'jack':
-                    card = Card(rank, suit, 10)
+                    self.cards.append(Card(rank, suit, 11))
                 elif rank == 'queen':
-                    card = Card(rank, suit, 10)
+                    self.cards.append(Card(rank, suit, 12))
                 elif rank == 'king':
-                    card = Card(rank, suit, 10)
+                    self.cards.append(Card(rank, suit, 13))
                 else:
-                    card = Card(rank, suit, int(rank))
-                self.cards.append(card)
-        self.shuffle() 
-        return self.cards
+                    self.cards.append(Card(rank, suit, int(rank)))
+        self.shuffle()
 
     def shuffle(self):
         random.shuffle(self.cards)
 
-
-class Button: 
+class Button:
     def __init__(self, x, y, label):
-        self._game_font = font.render(label, True, (255,255,255)) 
-        self.rect = py.Rect(x, y, self._game_font.get_rect().width, self._game_font.get_rect().height)
-        self.color = (131, 135, 133)
-    
+        self._game_font = font.render(label, True, (255, 255, 255))
+        self.rect = py.Rect(x, y, self._game_font.get_width(), self._game_font.get_height())
+        self.color = (102, 205, 170)
+        self.label = label
+
     def draw(self, surface):
         py.draw.rect(surface, self.color, self.rect)
         surface.blit(self._game_font, (self.rect.x, self.rect.y))
-    
+
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
 
-class Baccarat(Game, Deck, Card, Button):
+class Baccarat(Game):
     def __init__(self):
         self.deck = Deck()
         self.deck.addAllCards()
+        self.set_card_values()
         self.player = []
         self.banker = []
-        self.trash_cards = []
         self.result = ""
-        self.bet = ""
         self.scoreP = 100
-        self.scoreB = 100
-    
-    def set_ranks(self):
-        for card in self.deck.cards:
-            if card.rank in ['10', 'king', 'queen', 'jack']:
-                card.value = 0
-            elif card.rank == "ace":
-                card.value = 1
-    
+        self.bet_selected = False
+        self.round_over = False
+        self.choice = ""
+
     def deal_cards(self):
-        self.player.append(self.deck.cards.pop())
-        self.player.append(self.deck.cards.pop())
-        self.banker.append(self.deck.cards.pop())
-        self.banker.append(self.deck.cards.pop()) 
+        self.player = [self.deck.cards.pop(), self.deck.cards.pop()]
+        self.banker = [self.deck.cards.pop(), self.deck.cards.pop()]
+    
+    def set_card_values(self):
+        for card in self.deck.cards:
+            if card.rank in ['jack', 'queen', 'king']:
+                card.value = 10
 
-    def used_cards(self):
-        for i in range(len(self.player)):
-            self.trash_cards.append(self.player.pop())
-        for i in range(len(self.banker)):
-            self.trash_cards.append(self.banker.pop())
+    def rules(self):
+        p_total = (self.player[0].value + self.player[1].value) % 10
+        b_total = (self.banker[0].value + self.banker[1].value) % 10
 
-    def rules(self, p, b):
-        if p == b and (p == 8 or p == 9):
-            self.result = "Tie!"
+#NATURAL WIN
+        if p_total >= 8 or b_total >= 8:
+            self.result = (
+                "Player Wins!" if p_total > b_total
+                else "Banker Wins!" if b_total > p_total
+                else "Tie!"
+            )
             return
-        elif p == 8 or p == 9:
-            self.result = "Player Wins!"
-            return
-        elif b == 8 or b == 9:
-            self.result = "Banker Wins!"
-            return
-        
-        if p > 9:
-            p = p % 10
-        if b > 9:
-            b = b % 10
-
-        if p <= 5:
+##IF PLAYER TOTAL IS LESS THAN 5 
+        player_draws = False
+        if p_total <= 5:
             self.player.append(self.deck.cards.pop())
-            p += self.player[2].value
-            if b <= 2:
-                self.banker.append(self.deck.cards.pop())
-                b += self.banker[2].value
-            if b in [3, 4, 5, 6]:
-                if b == 3:
-                    if self.player[2].value in [0, 1, 2, 3, 4, 5, 6, 7, 9]:
-                        self.banker.append(self.deck.cards.pop())
-                elif b == 4:
-                    if self.player[2].value in [2, 3, 4, 5, 6, 7]:
-                        self.banker.append(self.deck.cards.pop())
-                elif b == 5:
-                    if self.player[2].value in [4, 5, 6, 7]:
-                        self.banker.append(self.deck.cards.pop())
-                elif b == 6:
-                    if self.player[2].value in [6, 7]:
-                        self.banker.append(self.deck.cards.pop())
+            player_third = self.player[2].value
+            player_draws = True
+        else:
+            player_third = None  
 
-        if p > b:
+        if not player_draws:
+            if b_total <= 5:
+                self.banker.append(self.deck.cards.pop())
+        else:
+            if b_total <= 2:
+                self.banker.append(self.deck.cards.pop())
+            elif b_total == 3 and player_third not in [8]:
+                self.banker.append(self.deck.cards.pop())
+            elif b_total == 4 and player_third in [2, 3, 4, 5, 6, 7]:
+                self.banker.append(self.deck.cards.pop())
+            elif b_total == 5 and player_third in [4, 5, 6, 7]:
+                self.banker.append(self.deck.cards.pop())
+            elif b_total == 6 and player_third in [6, 7]:
+                self.banker.append(self.deck.cards.pop())
+
+        p_final = sum(card.value for card in self.player) % 10
+        b_final = sum(card.value for card in self.banker) % 10
+
+        if p_final > b_final:
             self.result = "Player Wins!"
-        elif p < b:
+        elif b_final > p_final:
             self.result = "Banker Wins!"
         else:
             self.result = "Tie!"
-        
-    
-    def gameplay(self, screen, width, height):
 
-        play_againY = Button(0, (height * 1.8), "Yes")
-        play_againN = Button(100, (height * 1.8), "No")
+    def used_cards(self):
+            self.player.clear()
+            self.banker.clear()
+
+    def game_over(self, screen, width, height):
+        global font, clock
+        play_againY = Button(width, height + 100, "Yes")
+        play_againN = Button(width + 100, height + 100, "No")
+        running = True
+
+        while running:
+            screen.fill((65, 163, 101))
+            if self.scoreP <= 0: 
+                result_label = font.render("You're out of chips! Would you like to", True, (0, 0, 0))
+                rest_of_label = font.render("play again?", True, (0, 0, 0))
+
+            screen.blit(result_label, (0, 100))
+            screen.blit(rest_of_label, (0, 200))
+            play_againY.draw(screen)
+            play_againN.draw(screen)
+
+            for event in py.event.get():
+                if event.type == py.QUIT:
+                    py.quit()
+                    sys.exit()
+                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if play_againY.is_clicked(event.pos):
+                        self.scoreP = 100
+                        self.bet_selected = False
+                        self.choice = ""
+                        self.used_cards()
+                        self.result=""
+                        return
+                    elif play_againN.is_clicked(event.pos):
+                        py.quit()
+                        sys.exit()
+
+            keys = py.key.get_pressed()
+
+            if keys[py.K_ESCAPE]:
+                py.quit()
+                sys.exit()
+
+            py.display.flip()
+            clock.tick(60)
+
+
+    def gameplay(self, screen, width, height):
+        global font, clock
+        button_player = Button(100, 100, "Player")
+        button_banker = Button(300, 100, "Banker")
+        button_tie = Button(500, 100, "Tie")
+        button_deal = Button(650, 100, "Deal")
 
         running = True
-        stage = 0
-        delay = py.time.get_ticks()
-
-
         while running:
             screen.fill((65, 163, 101))
             title = font.render("Baccarat", True, (0, 0, 0))
             screen.blit(title, (width - title.get_width() // 2, 0))
-            
-            player_label = font.render("Player Cards: ", True, (0, 0, 0))
-            banker_label = font.render("Banker Cards: ", True, (0, 0, 0))
-            current_time = py.time.get_ticks()
 
-            if stage == 0:
-                if (len(self.deck.cards) < 10): self.deck.addAllCards()
-                self.deal_cards()
-                self.score = self.player[0].value + self.player[1].value
-                self.bscore = self.banker[0].value + self.banker[1].value
+            button_player.draw(screen)
+            button_banker.draw(screen)
+            button_tie.draw(screen)
+            button_deal.draw(screen)
 
-                self.vote(screen, center_screenW)   
-                choice = self.bet                   
+            screen.blit(font.render(f"Credits: {self.scoreP}", True, (0, 0, 0)), (50, 620))
 
-                delay = current_time
-                stage = 1   
-
-            if stage >= 1:
-                screen.blit(player_label, (50, 150))
+            if self.round_over:
                 for i, card in enumerate(self.player):
-                    load_img = card.load_card()
-                    if load_img:
-                        scale = py.transform.scale(load_img, (150, 200))
-                        screen.blit(scale, (width + i * 210, 230))
-
-                screen.blit(banker_label, (50, 550))
+                    img = card.load_card()
+                    if img:
+                        screen.blit(py.transform.scale(img, (120, 160)), (100 + i * 130, 200))
                 for j, card in enumerate(self.banker):
-                    banker_img = card.load_card()
-                    if banker_img:
-                        scale = py.transform.scale(banker_img, (150, 200))
-                        screen.blit(scale, (width + j * 210, 470))
+                    img = card.load_card()
+                    if img:
+                        screen.blit(py.transform.scale(img, (120, 160)), (100 + j * 130, 400))
+                result_text = font.render(self.result, True, (0, 0, 0))
+                screen.blit(result_text, (500, 350))
+                continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
+                screen.blit(continue_text, (300, 580))
 
-                player_score_text = font.render(f"Player Score: {self.scoreP}", True, (0, 0, 0))
-                screen.blit(player_score_text, (width - title.get_width(), 60))
+            if self.scoreP < 1:
+                self.game_over(screen, width, height)
 
-                banker_score_text = font.render(f"Banker Score: {self.scoreB}", True, (0, 0, 0))
-                screen.blit(banker_score_text, (width - title.get_width(), 100))
-
-            if stage == 1 and current_time - delay > 1000:
-                self.rules(self.score, self.bscore)
-                if self.result == choice and self.result == "Player Wins!":
-                    self.scoreP += 5
-                    self.scoreB -= 10
-                elif self.result == choice and self.result == "Banker Wins!":
-                    self.scoreP -= 10
-                    self.scoreB += 5
-                elif self.result == choice and self.result == "Tie!":
-                    continue
-                else:
-                    self.scoreP -= 10
-                if self.scoreP <= 0: self.scoreP = 0
-                if self.scoreB <= 0: self.scoreB = 0
-                stage = 2
-                delay = current_time
-
-            elif stage == 2:
-                if len(self.player) == 3:
-                    for i, card in enumerate(self.player):
-                        cimg = card.load_card()
-                        if cimg:
-                            scale = py.transform.scale(cimg, (150, 200))
-                            screen.blit(scale, (width + i * 210, 230))
-                if len(self.banker) == 3:
-                    for i, card in enumerate(self.banker):
-                        cimg = card.load_card()
-                        if cimg:
-                            scale = py.transform.scale(cimg, (150, 200))
-                            screen.blit(scale, (width + i * 210, 470))
-                if current_time - delay > 1500:
-                    stage = 3
-                    delay = current_time
-
-            elif stage == 3:
-                result_label = font.render(f"Results: {self.result}", True, (0, 0, 0))
-                screen.blit(result_label, (width - result_label.get_width() // 2, 360))
-                if self.scoreP > 0 and self.scoreB > 0 and current_time - delay > 2000:
-                    stage = 0
-                elif self.scoreP <= 0 or self.scoreB <= 0:
-                    if self.scoreP <= 0: result_label = font.render("You lost! Would you like to play agian?", True, (0, 0, 0))
-                    else: font.render("Banker lost! Would you like to play agian?", True, (0,0,0))
-
-                    screen.blit(result_label, (0, height * 1.5))
-                    play_againY.draw(screen)
-                    play_againN.draw(screen)
-
-                    if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                        if play_againY.is_clicked(event.pos):
-                            stage = 0
-                            self.scoreP, self.scoreB = 100, 100
-                            continue
-                        elif play_againN.is_clicked(event.pos):
-                            running = False
-                self.used_cards()
-            
             for event in py.event.get():
                 if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
+                    py.quit(); sys.exit()
+                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if button_player.is_clicked(event.pos):
+                        self.choice = "Player Wins!"
+                        self.bet_selected = True
+                    elif button_banker.is_clicked(event.pos):
+                        self.choice = "Banker Wins!"
+                        self.bet_selected = True
+                    elif button_tie.is_clicked(event.pos):
+                        self.choice = "Tie!"
+                        self.bet_selected = True
+                    elif button_deal.is_clicked(event.pos) and self.bet_selected and not self.round_over:
+                        if len(self.deck.cards) < 10:
+                            self.deck.addAllCards()
+                            self.set_card_values()
+
+                        self.deal_cards()        
+                        self.rules()  
+
+                        if self.result == self.choice:
+                            self.scoreP += 5
+                        else:
+                            self.scoreP -= 10
+                        self.round_over = True
 
             keys = py.key.get_pressed()
+            if keys[py.K_RETURN] and self.round_over:
+                self.bet_selected = False
+                self.round_over = False
+                self.choice = ""
+                self.used_cards()
+                self.result=""
+            
+            if keys[py.K_KP_ENTER]:
+                self.round_over = False
+                self.bet_selected = False
+            
             if keys[py.K_ESCAPE]:
-                running = False
+                py.quit()
+                sys.exit()
+
 
             py.display.flip()
             clock.tick(60)
-
         self.used_cards()
 
-    def vote(self, screen, resW):
-        tab_clock = py.time.Clock()
-        player = Button(center_screenW - 100, center_screenH - 100, "Player wins")
-        banker = Button(center_screenW - 100, center_screenH, "Banker wins")
-        tie = Button(center_screenW - 100, center_screenH + 100, "Tie")
 
-        while True:
-            screen.fill((65, 163, 101))
-            title = font.render("Place Your Bet", True, (0, 0, 0))
-            screen.blit(title, (resW - title.get_width() // 2, 50))
-
-            player.draw(screen)
-            banker.draw(screen)
-            tie.draw(screen)
-
-            for event in py.event.get():
-                if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
-                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                    if player.is_clicked(event.pos):
-                        self.bet = "Player Wins!"
-                        return
-                    elif banker.is_clicked(event.pos):
-                        self.bet = "Banker Wins!"
-                        return
-                    elif tie.is_clicked(event.pos):
-                        self.bet = "Tie!"
-                        return
-
-            py.display.flip()
-            tab_clock.tick(60)
-    
-        
-class BlackJack(Game, Deck, Card, Button):
+class Blackjack(Game):
     def __init__(self):
         self.deck = Deck()
         self.deck.addAllCards()
+        self.set_card_values()
         self.player = []
-        self.banker = []
-        self.trash_cards = []
+        self.dealer = []
+        self.scoreP = 1000
         self.result = ""
-        self.bet = ""
-        self.scoreP = 100
-        self.scoreB = 100
-    
-    def set_ranks(self):
-        for card in self.deck.cards:
-            if card.rank in ['10', 'king', 'queen', 'jack']:
-                card.value = 0
-            elif card.rank == "ace":
-                card.value = 1
+        self.choice = ""
+        self.bet = 100
+        self.blackjack = False
     
     def deal_cards(self):
         self.player.append(self.deck.cards.pop())
         self.player.append(self.deck.cards.pop())
-        self.banker.append(self.deck.cards.pop())
-        self.banker.append(self.deck.cards.pop()) 
+        self.dealer.append(self.deck.cards.pop())
+        self.dealer.append(self.deck.cards.pop())
 
     def used_cards(self):
-        for i in range(len(self.player)):
-            self.trash_cards.append(self.player.pop())
-        for i in range(len(self.banker)):
-            self.trash_cards.append(self.banker.pop())
+        self.player.clear()
+        self.dealer.clear()
+    
+    def ace_cards(self, dealer_score, player_score):
+        ace_cards = sum(1 for card in self.player if card.rank == 'ace')
+        dealer_ace_cards = sum(1 for card in self.dealer if card.rank == 'ace')
 
-    def rules(self, p, b):
-        if p == b and p == 21:
-            self.result = "Tie!"
-            return
-        elif p == 21:
-            self.result = "Player Wins!"
-            return
-        elif b == 21:
-            self.result = "Banker Wins!"
-            return
-
-        if p > 21:
-            self.result = "Banker Wins!"
-            return
-        if b > 21:
-            self.result = "Player Wins!"
-            return
-
-        if p < 17:
-            self.player.append(self.deck.cards.pop())
-            p += self.player[-1].value
-        if b < 17:
-            self.banker.append(self.deck.cards.pop())
-            b += self.banker[-1].value
-
-        if p > 21:
-            self.result = "Banker Wins!"
-        elif b > 21:
-            self.result = "Player Wins!"
-        elif p > b:
-            self.result = "Player Wins!"
-        elif p < b:
-            self.result = "Banker Wins!"
+        if player_score > 21 and ace_cards != 2:
+            for i in range(ace_cards):
+                player_score -= 10
         else:
-            self.result = "Tie!"
+            player_score -= 10
         
-    def gameplay(self, screen, width, height):
+        if dealer_score > 21 and dealer_ace_cards != 2:
+            for i in range(dealer_ace_cards):
+                dealer_score -= 10
+        else:
+            dealer_score -= 10
+        
+        return dealer_score, player_score
 
-        play_againY = Button(0, (height * 1.8), "Yes")
-        play_againN = Button(100, (height * 1.8), "No")
+    def rules(self):
+        player_score = sum(card.value for card in self.player)
+        
+        dealer_score = sum(card.value for card in self.dealer)
+        
 
+        if player_score == 21 and dealer_score != 21:
+            self.result = "Player Wins!"
+            self.blackjack = True
+            return
+        elif dealer_score == 21 and player_score != 21:
+            self.result = "Dealer Wins!"
+            self.blackjack = True
+            return
+        elif dealer_score == 21 and player_score == 21:
+            self.result = "Push!"
+            return
+
+        dealer_score, player_score = self.ace_cards(dealer_score, player_score)
+
+        if self.choice == "hit":
+            self.player.append(self.deck.cards.pop())
+            player_score += self.player[2].value
+        elif self.choice == "double down":
+            self.bet *= 2
+            self.player.append(self.deck.cards.pop())
+            player_score += self.player[2].value
+        if dealer_score < 17:
+            self.dealer.append(self.deck.cards.pop())
+            dealer_score += self.dealer[2].value
+        
+        dealer_score, player_score = self.ace_cards(dealer_score, player_score)
+        
+        if player_score == 21 and dealer_score == 21:
+            self.result = "Push!"
+        elif player_score > 21 and dealer_score < 21:
+            self.result = "Dealer Wins!"
+        elif player_score < 21 and dealer_score > 21:
+            self.result = "Player Wins!"
+        else:
+            if player_score < dealer_score:
+                self.result = "Dealer Wins!"
+            elif player_score > dealer_score:
+                self.result = "Player Wins!"
+            else:
+                self.result = "Push!"
+        
+    def set_card_values(self):
+        for card in self.deck.cards:
+            if card.rank in ['jack', 'king', 'queen']:
+                card.value = 10
+            if card.rank == 'ace':
+                card.value = 11
+    
+    def game_over(self, screen, width, height):
+        global font, clock
+        play_againY = Button(width, height + 100, "Yes")
+        play_againN = Button(width + 100, height + 100, "No")
         running = True
-        stage = 0
-        delay = py.time.get_ticks()
-
 
         while running:
             screen.fill((65, 163, 101))
-            title = font.render("BlackJack", True, (0, 0, 0))
-            screen.blit(title, (width - title.get_width() // 2, 0))
-            
-            player_label = font.render("Player Cards: ", True, (0, 0, 0))
-            banker_label = font.render("Banker Cards: ", True, (0, 0, 0))
-            current_time = py.time.get_ticks()
+            if self.scoreP <= 0: 
+                result_label = font.render("You're out of chips! Would you like to", True, (0, 0, 0))
+                rest_of_label = font.render("play again?", True, (0, 0, 0))
 
-            if stage == 0:
-                if (len(self.deck.cards) < 10): self.deck.addAllCards()
-                self.deal_cards()
-                self.score = self.player[0].value + self.player[1].value
-                self.bscore = self.banker[0].value + self.banker[1].value
-
-                self.vote(screen, center_screenW)   
-                choice = self.bet                   
-
-                delay = current_time
-                stage = 1   
-
-            if stage >= 1:
-                screen.blit(player_label, (50, 150))
-                for i, card in enumerate(self.player):
-                    load_img = card.load_card()
-                    if load_img:
-                        scale = py.transform.scale(load_img, (150, 200))
-                        screen.blit(scale, (width + i * 210, 230))
-
-                screen.blit(banker_label, (50, 550))
-                for j, card in enumerate(self.banker):
-                    banker_img = card.load_card()
-                    if banker_img:
-                        scale = py.transform.scale(banker_img, (150, 200))
-                        screen.blit(scale, (width + j * 210, 470))
-
-                player_score_text = font.render(f"Player Score: {self.scoreP}", True, (0, 0, 0))
-                screen.blit(player_score_text, (width - title.get_width(), 60))
-
-                banker_score_text = font.render(f"Banker Score: {self.scoreB}", True, (0, 0, 0))
-                screen.blit(banker_score_text, (width - title.get_width(), 100))
-
-            if stage == 1 and current_time - delay > 1000:
-                self.rules(self.score, self.bscore)
-                if self.result == choice and self.result == "Player Wins!":
-                    self.scoreP += 5
-                    self.scoreB -= 10
-                elif self.result == choice and self.result == "Banker Wins!":
-                    self.scoreP -= 10
-                    self.scoreB += 5
-                elif self.result == choice and self.result == "Tie!":
-                    continue
-                else:
-                    self.scoreP -= 10
-                if self.scoreP <= 0: self.scoreP = 0
-                if self.scoreB <= 0: self.scoreB = 0
-                stage = 2
-                delay = current_time
-
-            elif stage == 2:
-                if len(self.player) == 3:
-                    for i, card in enumerate(self.player):
-                        cimg = card.load_card()
-                        if cimg:
-                            scale = py.transform.scale(cimg, (150, 200))
-                            screen.blit(scale, (width + i * 210, 230))
-                if len(self.banker) == 3:
-                    for i, card in enumerate(self.banker):
-                        cimg = card.load_card()
-                        if cimg:
-                            scale = py.transform.scale(cimg, (150, 200))
-                            screen.blit(scale, (width + i * 210, 470))
-                if current_time - delay > 1500:
-                    stage = 3
-                    delay = current_time
-
-            elif stage == 3:
-                result_label = font.render(f"Results: {self.result}", True, (0, 0, 0))
-                screen.blit(result_label, (width - result_label.get_width() // 2, 360))
-                if self.scoreP > 0 and self.scoreB > 0 and current_time - delay > 2000:
-                    stage = 0
-                elif self.scoreP <= 0 or self.scoreB <= 0:
-                    if self.scoreP <= 0: result_label = font.render("You lost! Would you like to play agian?", True, (0, 0, 0))
-                    else: font.render("Banker lost! Would you like to play agian?", True, (0,0,0))
-
-                    screen.blit(result_label, (0, height * 1.5))
-                    play_againY.draw(screen)
-                    play_againN.draw(screen)
-
-                    if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                        if play_againY.is_clicked(event.pos):
-                            stage = 0
-                            self.scoreP, self.scoreB = 100, 100
-                            continue
-                        elif play_againN.is_clicked(event.pos):
-                            running = False
-                self.used_cards()
-            
-            for event in py.event.get():
-                if event.type == py.QUIT:
-                    py.quit()
-                    sys.exit()
-
-            keys = py.key.get_pressed()
-            if keys[py.K_ESCAPE]:
-                running = False
-
-            py.display.flip()
-            clock.tick(60)
-
-        self.used_cards()
-
-    def vote(self, screen, resW):
-        tab_clock = py.time.Clock()
-        player = Button(center_screenW - 100, center_screenH - 100, "Player wins")
-        banker = Button(center_screenW - 100, center_screenH, "Banker wins")
-        tie = Button(center_screenW - 100, center_screenH + 100, "Tie")
-
-        while True:
-            screen.fill((65, 163, 101))
-            title = font.render("Place Your Bet", True, (0, 0, 0))
-            screen.blit(title, (resW - title.get_width() // 2, 50))
-
-            player.draw(screen)
-            banker.draw(screen)
-            tie.draw(screen)
+            screen.blit(result_label, (0, 100))
+            screen.blit(rest_of_label, (0, 200))
+            play_againY.draw(screen)
+            play_againN.draw(screen)
 
             for event in py.event.get():
                 if event.type == py.QUIT:
                     py.quit()
                     sys.exit()
                 elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                    if player.is_clicked(event.pos):
-                        self.bet = "Player Wins!"
-                        return
-                    elif banker.is_clicked(event.pos):
-                        self.bet = "Banker Wins!"
-                        return
-                    elif tie.is_clicked(event.pos):
-                        self.bet = "Tie!"
-                        return
+                    if play_againY.is_clicked(event.pos):
+                        self.scoreP = 1000
+                        self.blackjack = False
+                        self.round_over = False
+                        self.bet = 100
+                        self.choice = ""
+                        self.used_cards()
+                        self.result=""
+                        return 1
+                    elif play_againN.is_clicked(event.pos):
+                        py.quit()
+                        sys.exit()
+
+            keys = py.key.get_pressed()
+
+            if keys[py.K_ESCAPE]:
+                py.quit()
+                sys.exit()
 
             py.display.flip()
-            tab_clock.tick(60)
+            clock.tick(60)
 
-py.init()
-resolution = py.display.Info()
-screen = py.display.set_mode((resolution.current_w // 2, resolution.current_h // 2))
-py.display.set_caption("Card Games")
-font = py.font.Font("CARDC___.TTF", 40)
-clock = py.time.Clock()
-center_screenW = resolution.current_w // 4  
-center_screenH = resolution.current_h // 4 
+    def gameplay(self, screen, width, height):
+        global font, clock
+        hit = Button(100, 100, "Hit")
+        stand = Button(200, 100, "Stand")
+        double_down = Button(350, 100, "Double Down")
+        deal = Button(650, 100, "Play")
 
-baccarat = Button(center_screenW - 100, center_screenH - 100, "Baccaract")
-blackjack = Button(center_screenW - 100, center_screenH, "Black Jack")
-exit = Button(center_screenW - 100, center_screenH + 100, "Exit")
+        round_over = False
+        stage = 1
+        are_cards_dealt = False
+        running = True
 
-state = "menu"
+        while running:
+            screen.fill((65, 163, 101))
+            title = font.render("Blackjack", True, (0, 0, 0))
+            screen.blit(title, (width - title.get_width() // 2, 0)) 
+            screen.blit(font.render(f"Credits: {self.scoreP}", True, (0, 0, 0)), (50, 620))
 
-while True:
-    screen.fill((28, 28, 28))
+            hit.draw(screen)
+            stand.draw(screen)
+            double_down.draw(screen)
+            deal.draw(screen)
+            keys = py.key.get_pressed()
 
-    title = font.render("Card Games", True, (255, 255, 255))
-    title_screen = title.get_rect(center=(center_screenW, 150))
-    screen.blit(title, title_screen)
+            if stage == 1 and not are_cards_dealt:
+                self.used_cards()  
+                self.deal_cards()
+                are_cards_dealt = True
 
-    for event in py.event.get():
-        if event.type == py.QUIT:
-            py.quit()
-            sys.exit()
-        
-        elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-            if state == "menu":
-                if baccarat.is_clicked(event.pos):
-                    state = "baccarat"
-                elif blackjack.is_clicked(event.pos):
-                    state = "blackjack"
-                elif exit.is_clicked(event.pos):
+            if self.player and self.dealer:
+                for i,card in enumerate(self.player):
+                    load_img = card.load_card()
+                    if load_img:
+                       screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 200))
+
+                for i,card in enumerate(self.dealer):
+                    if i == 1 and stage == 1:
+                        load_img = card.face_card()
+                        if load_img:
+                            screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 400))
+                    else:
+                        load_img = card.load_card()
+                        if load_img:
+                            screen.blit(py.transform.scale(load_img, (120, 160)), (100 + i * 130, 400))
+
+                if self.result:
+                    if self.scoreP <= 0 and round_over:
+                        stage = self.game_over(screen, width, height)
+                    if self.blackjack:
+                        result_text = font.render(f"Blackjack! {self.result}", True, (0, 0, 0))
+                    else:
+                        result_text = font.render(self.result, True, (0, 0, 0))
+                    screen.blit(result_text, (400, 350))
+                    continue_text = font.render("Press ENTER to continue", True, (0, 0, 0))
+                    screen.blit(continue_text, (300, 580))
+
+            for event in py.event.get():
+                if event.type == py.QUIT:
                     py.quit()
                     sys.exit()
 
-        if state == "menu":
-            baccarat.draw(screen)
-            blackjack.draw(screen)
-            exit.draw(screen)
+                elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if deal.is_clicked(event.pos) and not round_over:
+                        if len(self.deck.cards) < 10:
+                            self.deck.addAllCards()
+                            self.set_card_values()
+                        self.rules()
+                        stage = 2
+                        
+                        if self.blackjack:
+                            self.bet *= 1.5
+                            self.bet //= 1
+                            self.scoreP -= self.bet
+                        elif self.result == "Player Wins!":
+                            self.scoreP += self.bet
+                        elif self.result == "Dealer Wins!":
+                            self.scoreP -= self.bet
+                        self.bet = 100
+                        round_over = True
+                    elif round_over:  
+                        continue
+                    elif stage == 2:
+                        if hit.is_clicked(event.pos):
+                            self.choice = "hit"
+                        elif stand.is_clicked(event.pos):
+                            self.choice = "stand"
+                        elif double_down.is_clicked(event.pos):
+                            self.choice = "double down"
+            
+            if keys[py.K_RETURN] and round_over:
+                round_over = False
+                self.blackjack = False
+                self.choice = ""
+                self.used_cards()
+                self.result = ""
+                stage = 1
+                are_cards_dealt = False
 
-        elif state == "baccarat":
-            player = Baccarat()
-            player.set_ranks()
-            player.gameplay(screen, center_screenW, center_screenH)
-            state = "menu"
+            if keys[py.K_KP_ENTER] and round_over:
+                round_over = False
+                self.blackjack = False
+                self.choice = ""
+                self.used_cards()
+                self.result = ""
+                stage = 1
+                are_cards_dealt = False
 
-        elif state == "blackjack":
-            player = BlackJack()
-            player.set_ranks()
-            player.gameplay(screen, center_screenW, center_screenH)
-            state = "menu"
-        
-        keys = py.key.get_pressed()
-        if keys[py.K_ESCAPE]:
-            state = "menu"
-        
-        py.display.flip()
-        clock.tick(60)
+
+            if keys[py.K_ESCAPE]:
+                            py.quit()
+                            sys.exit()
+            
+            py.display.flip()
+            clock.tick(60)
+
+#LAUNCH
+def start_baccarat():
+    w.destroy()
+    py.init()
+    screen = py.display.set_mode((1000, 700))
+    py.display.set_caption("Baccarat")
+    global font, clock
+    font = py.font.Font("CARDC___.TTF", 40)
+    clock = py.time.Clock()
+    game = Baccarat()
+    game.gameplay(screen, 400, 300)
+
+def start_blackjack():
+    w.destroy()
+    py.init()
+    screen = py.display.set_mode((1000, 700))
+    py.display.set_caption("Blackjack")
+    global font, clock
+    font = py.font.Font("CARDC___.TTF", 40)
+    clock = py.time.Clock()
+    game = Blackjack()
+    game.gameplay(screen, 400, 300)
+
+def quit_game():
+    w.destroy()
+    sys.exit()
+##WINDOW
+w = tk.Tk()
+w.title("Casino Royale")
+w.configure(bg='green')
+fontStyle = tkfont.Font(family="Arial", size=60)
+window_width, window_height = 800, 600
+screen_width = w.winfo_screenwidth()
+screen_height = w.winfo_screenheight()
+x = (screen_width - window_width) // 2
+y = (screen_height - window_height) // 2
+w.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+tk.Label(w, text='Casino Madness', bg='green', fg='yellow', font=fontStyle).pack(pady=50)
+tk.Button(w, text='BlackJack', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=start_blackjack).place(relx=0.5, rely=0.4, anchor="center")
+tk.Button(w, text='Baccarat', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=start_baccarat).place(relx=0.5, rely=0.55, anchor="center")
+tk.Button(w, text='Exit', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=quit_game).place(relx=0.5, rely=0.7, anchor='center')
+w.mainloop()

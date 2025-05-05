@@ -38,6 +38,8 @@ class Card:
     
     def face_card(self):
             return py.image.load("Images/face.png").convert_alpha()
+
+
     
 class Deck:
     def __init__(self):
@@ -65,15 +67,19 @@ class Deck:
         random.shuffle(self.cards)
 
 class Button:
-    def __init__(self, x, y, label):
+    def __init__(self, x, y, label, font):
         self._game_font = font.render(label, True, (255, 255, 255))
-        self.rect = py.Rect(x, y, self._game_font.get_width(), self._game_font.get_height())
+        self.rect = py.Rect(x, y, self._game_font.get_width() + 20, self._game_font.get_height() + 10)
         self.color = (102, 205, 170)
         self.label = label
+        self.font = font
 
     def draw(self, surface):
-        py.draw.rect(surface, self.color, self.rect)
-        surface.blit(self._game_font, (self.rect.x, self.rect.y))
+        py.draw.rect(surface, self.color, self.rect, border_radius=8)
+        text_surface = self.font.render(self.label, True, (0, 0, 0))
+        text_x = self.rect.x + (self.rect.width - text_surface.get_width()) // 2
+        text_y = self.rect.y + (self.rect.height - text_surface.get_height()) // 2
+        surface.blit(text_surface, (text_x, text_y))
 
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
@@ -195,10 +201,13 @@ class Baccarat(Game):
 
     def gameplay(self, screen, width, height):
         global font, clock
-        button_player = Button(100, 100, "Player")
-        button_banker = Button(300, 100, "Banker")
-        button_tie = Button(500, 100, "Tie")
-        button_deal = Button(650, 100, "Deal")
+        button_player = Button(100, 100, "Player", font)
+        button_banker = Button(300, 100, "Banker", font)
+        button_tie = Button(500, 100, "Tie", font)
+        button_deal = Button(650, 100, "Deal", font)
+        menu_button = Button(850, 20, "Menu", font)
+
+        
 
         running = True
         while running:
@@ -210,6 +219,10 @@ class Baccarat(Game):
             button_banker.draw(screen)
             button_tie.draw(screen)
             button_deal.draw(screen)
+            menu_button.draw(screen)
+
+            
+
 
             screen.blit(font.render(f"Credits: {self.__scoreP}", True, (0, 0, 0)), (50, 620))
 
@@ -234,6 +247,8 @@ class Baccarat(Game):
                 if event.type == py.QUIT:
                     py.quit(); sys.exit()
                 elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if menu_button.is_clicked(event.pos):
+                        return
                     if button_player.is_clicked(event.pos):
                         self.__choice = "Player Wins!"
                         self._bet_selected = True
@@ -420,10 +435,12 @@ class Blackjack(Game):
 
     def gameplay(self, screen, width, height):
         global font, clock
-        hit = Button(100, 100, "Hit")
-        stand = Button(200, 100, "Stand")
-        double_down = Button(350, 100, "Double Down")
-        deal = Button(650, 100, "Play")
+        hit = Button(100, 100, "Hit", font)
+        stand = Button(200, 100, "Stand", font)
+        double_down = Button(350, 100, "Double Down", font)
+        deal = Button(650, 100, "Play", font)
+        menu_button = Button(850, 20, "Menu", font)
+
 
         round_over = False
         stage = 1
@@ -441,6 +458,8 @@ class Blackjack(Game):
             double_down.draw(screen)
             deal.draw(screen)
             keys = py.key.get_pressed()
+            menu_button.draw(screen)
+
 
             if stage == 1 and not are_cards_dealt:
                 self.used_cards()  
@@ -480,6 +499,8 @@ class Blackjack(Game):
                     sys.exit()
 
                 elif event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+                    if menu_button.is_clicked(event.pos): 
+                        return
                     if deal.is_clicked(event.pos) and not round_over:
                         if len(self.__deck.cards) < 10:
                             self.__deck.addAllCards()
@@ -535,7 +556,6 @@ class Blackjack(Game):
 
 #LAUNCH
 def start_baccarat():
-    w.destroy()
     py.init()
     screen = py.display.set_mode((1000, 700))
     py.display.set_caption("Baccarat")
@@ -544,9 +564,10 @@ def start_baccarat():
     clock = py.time.Clock()
     game = Baccarat()
     game.gameplay(screen, 400, 300)
+    py.display.set_mode((1280,720))
+    main_menu()
 
 def start_blackjack():
-    w.destroy()
     py.init()
     screen = py.display.set_mode((1000, 700))
     py.display.set_caption("Blackjack")
@@ -555,24 +576,85 @@ def start_blackjack():
     clock = py.time.Clock()
     game = Blackjack()
     game.gameplay(screen, 400, 300)
+    py.display.set_mode((1280,720))
+    main_menu()
 
-def quit_game():
-    w.destroy()
-    sys.exit()
+
+
+
 ##WINDOW
-w = tk.Tk()
-w.title("Casino Royale")
-w.configure(bg='green')
-fontStyle = tkfont.Font(family="Arial", size=60)
-window_width, window_height = 800, 600
-screen_width = w.winfo_screenwidth()
-screen_height = w.winfo_screenheight()
-x = (screen_width - window_width) // 2
-y = (screen_height - window_height) // 2
-w.geometry(f"{window_width}x{window_height}+{x}+{y}")
+py.init()
+SCREEN = py.display.set_mode((1280, 720))
+py.display.set_caption("Casino Madness")
 
-tk.Label(w, text='Casino Madness', bg='green', fg='yellow', font=fontStyle).pack(pady=50)
-tk.Button(w, text='BlackJack', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=start_blackjack).place(relx=0.5, rely=0.4, anchor="center")
-tk.Button(w, text='Baccarat', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=start_baccarat).place(relx=0.5, rely=0.55, anchor="center")
-tk.Button(w, text='Exit', width=15, height=3, bg='red', fg='black', relief='flat', highlightbackground='red', command=quit_game).place(relx=0.5, rely=0.7, anchor='center')
-w.mainloop()
+BG = py.image.load("assets/Background.png")
+BG = py.transform.scale(BG, (1280, 720))
+def get_font(size):
+    return py.font.Font("assets/font.ttf", size)
+
+class PygameButton():
+    def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+        self.image = image
+        self.x_pos = pos[0]
+        self.y_pos = pos[1]
+        self.font = font
+        self.base_color, self.hovering_color = base_color, hovering_color
+        self.text_input = text_input
+        self.text = self.font.render(self.text_input, True, self.base_color)
+        if self.image is None:
+            self.image = self.text
+        self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
+        self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
+
+    def update(self, screen):
+        if self.image is not None:
+            screen.blit(self.image, self.rect)
+        screen.blit(self.text, self.text_rect)
+
+    def checkForInput(self, position):
+        return self.rect.collidepoint(position)
+
+    def changeColor(self, position):
+        if self.rect.collidepoint(position):
+            self.text = self.font.render(self.text_input, True, self.hovering_color)
+        else:
+            self.text = self.font.render(self.text_input, True, self.base_color)
+
+def main_menu():
+    while True:
+        SCREEN.blit(BG, (0, 0))
+        MENU_MOUSE_POS = py.mouse.get_pos()
+
+        MENU_TEXT = get_font(90).render("CASINO MADNESS", True, "#b68f40")
+        MENU_RECT = MENU_TEXT.get_rect(center=(640, 100))
+        SCREEN.blit(MENU_TEXT, MENU_RECT)
+
+        PLAY_BUTTON = PygameButton(image=py.image.load("assets/Play Rect.png"), pos=(640, 250),
+                                   text_input="BLACKJACK", font=get_font(50), base_color="#d7fcd4", hovering_color="White")
+        OPTIONS_BUTTON = PygameButton(image=py.image.load("assets/Options Rect.png"), pos=(640, 400),
+                                      text_input="BACCARAT", font=get_font(50), base_color="#d7fcd4", hovering_color="White")
+        QUIT_BUTTON = PygameButton(image=py.image.load("assets/Quit Rect.png"), pos=(640, 550),
+                                   text_input="QUIT", font=get_font(50), base_color="#d7fcd4", hovering_color="White")
+
+        for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON]:
+            button.changeColor(MENU_MOUSE_POS)
+            button.update(SCREEN)
+
+        for event in py.event.get():
+            if event.type == py.QUIT:
+                py.quit()
+                sys.exit()
+            if event.type == py.MOUSEBUTTONDOWN:
+                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    start_blackjack()
+                if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    start_baccarat()
+                if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    py.quit()
+                    sys.exit()
+
+        py.display.update()
+
+# Instead of Tkinter, start the Pygame menu
+if __name__ == "__main__":
+    main_menu()
